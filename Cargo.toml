@@ -1,0 +1,18 @@
+[package]
+name = "rboehm"
+version = "0.1.0"
+authors = ["Jacob Hughes <jh@jakehughes.uk>"]
+edition = "2018"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+libc = "*"
+
+[build-dependencies]
+rerun_except = "0.1"
+
+[dev-dependencies]
+lang_tester = "0.3"
+tempdir = "0.3"
