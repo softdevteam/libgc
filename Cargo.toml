@@ -12,6 +12,7 @@ libc = "*"
 
 [build-dependencies]
 rerun_except = "0.1"
+num_cpus = "1.12"
 
 [dev-dependencies]
 lang_tester = "0.3"
