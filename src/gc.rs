@@ -4,8 +4,7 @@ use std::{
     ffi::c_void,
     fmt,
     marker::PhantomData,
-    mem::{forget, transmute, ManuallyDrop, MaybeUninit},
-    num::NonZeroUsize,
+    mem::{forget, ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -126,48 +125,28 @@ struct GcBox<T: ?Sized>(ManuallyDrop<T>);
 
 impl<T> GcBox<T> {
     fn new(value: T) -> *mut GcBox<T> {
-        let (layout, _) = Layout::new::<usize>().extend(Layout::new::<T>()).unwrap();
-        let base_ptr = unsafe { GC_ALLOCATOR.alloc(layout).unwrap().0.as_ptr() };
+        let layout = Layout::new::<T>();
+        let ptr = unsafe { GC_ALLOCATOR.alloc(layout).unwrap().0.as_ptr() } as *mut GcBox<T>;
         let gcbox = GcBox(ManuallyDrop::new(value));
-        let obj_ptr = unsafe { (base_ptr as *mut usize).add(1) } as *mut GcBox<T>;
 
         unsafe {
-            obj_ptr.copy_from_nonoverlapping(&gcbox, 1);
+            ptr.copy_from_nonoverlapping(&gcbox, 1);
+            GcBox::register_finalizer(&mut *ptr);
         }
 
-        GcBox::register_finalizer(unsafe { &mut *obj_ptr });
         forget(gcbox);
-        obj_ptr
+        ptr
     }
 
     fn register_finalizer(&mut self) {
-        unsafe extern "C" fn fshim(obj: *mut c_void, _meta: *mut c_void) {
-            let vptr = *(obj as *mut Option<NonZeroUsize>);
-            match vptr {
-                Some(nzptr) => {
-                    let objptr = (obj as *mut usize).add(1);
-                    let flzr = transmute::<(usize, usize), &mut dyn Finalize>((
-                        objptr as usize,
-                        nzptr.get(),
-                    ));
-                    flzr.finalize()
-                }
-                None => return,
-            }
+        unsafe extern "C" fn fshim<T>(obj: *mut c_void, _meta: *mut c_void) {
+            ManuallyDrop::drop(&mut *(obj as *mut ManuallyDrop<T>));
         }
+
         unsafe {
-            let fatptr: &mut dyn Finalize = self;
-            let vptr = NonZeroUsize::new_unchecked(
-                transmute::<&mut dyn Finalize, (usize, usize)>(fatptr).1,
-            );
-
-            let base_ptr = (self as *mut _ as *mut usize).sub(1) as *mut Option<NonZeroUsize>;
-
-            ::std::ptr::write(base_ptr, Some(vptr));
-
             boehm::GC_register_finalizer(
-                base_ptr as *mut _ as *mut ::std::ffi::c_void,
-                fshim,
+                self as *mut _ as *mut ::std::ffi::c_void,
+                fshim::<T>,
                 ::std::ptr::null_mut(),
                 ::std::ptr::null_mut(),
                 ::std::ptr::null_mut(),
@@ -177,12 +156,7 @@ impl<T> GcBox<T> {
 
     fn new_from_layout(layout: Layout) -> NonNull<GcBox<MaybeUninit<T>>> {
         unsafe {
-            let (nl, _) = Layout::new::<usize>().extend(layout).unwrap();
-            let base_ptr = GC_ALLOCATOR.alloc(nl).unwrap().0.as_ptr() as *mut usize;
-
-            // Placeholder for vptr
-            ::std::ptr::write(base_ptr as *mut Option<NonZeroUsize>, None);
-
+            let base_ptr = GC_ALLOCATOR.alloc(layout).unwrap().0.as_ptr() as *mut usize;
             NonNull::new_unchecked((base_ptr.add(1)) as *mut GcBox<MaybeUninit<T>>)
         }
     }
@@ -195,23 +169,6 @@ impl<T> GcBox<MaybeUninit<T>> {
         // GcDummyDrop vptr in the block header with it.
         self.register_finalizer();
         NonNull::new_unchecked(self as *mut _ as *mut GcBox<T>)
-    }
-}
-
-/// Used to clean up resources after a garbage collection.
-///
-/// A `Finalize` trait can be thought of as similar to `Drop`. Its `finalize`
-/// method is called by the GC when the object is considered garbage. We avoid
-/// `Drop` and use an explicit `Finalize` trait for this because `Drop` is
-/// special-cased in compiler and we want to avoid prematurely dropping fields
-/// pointing to other `GcBox`s.
-trait Finalize {
-    fn finalize(&mut self);
-}
-
-impl<T> Finalize for GcBox<T> {
-    fn finalize(&mut self) {
-        unsafe { ManuallyDrop::drop(&mut self.0) };
     }
 }
 
