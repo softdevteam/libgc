@@ -1,5 +1,5 @@
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 static BOEHM_REPO: &str = "https://github.com/ivmai/bdwgc.git";
