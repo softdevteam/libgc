@@ -2,9 +2,10 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-static BOEHM_REPO: &str = "https://github.com/ivmai/bdwgc.git";
-static BOEHM_ATOMICS_REPO: &str = "https://github.com/ivmai/libatomic_ops.git";
-static BOEHM_DIR: &str = "bdwgc";
+const BOEHM_REPO: &str = "https://github.com/ivmai/bdwgc.git";
+const BOEHM_ATOMICS_REPO: &str = "https://github.com/ivmai/libatomic_ops.git";
+const BOEHM_DIR: &str = "bdwgc";
+const BUILD_DIR: &str = ".libs";
 
 #[cfg(not(all(target_pointer_width = "64", target_arch = "x86_64")))]
 compile_error!("Requires x86_64 with 64 bit pointer width.");
@@ -38,11 +39,24 @@ fn main() {
         });
     }
 
-    env::set_current_dir(boehm_src).unwrap();
+    env::set_current_dir(&boehm_src).unwrap();
 
     run("./autogen.sh", |cmd| cmd);
-    run("./configure", |cmd| cmd.env("CFLAGS", POINTER_MASK));
+    run("./configure", |cmd| {
+        cmd.arg("--enable-static")
+            .arg("--disable-shared")
+            .env("CFLAGS", POINTER_MASK)
+    });
 
     let cpus = num_cpus::get();
     run("make", |cmd| cmd.arg("-j").arg(format!("{}", cpus)));
+
+    let mut libpath = PathBuf::from(&boehm_src);
+    libpath.push(BUILD_DIR);
+
+    println!(
+        "cargo:rustc-link-search=native={}",
+        &libpath.as_path().to_str().unwrap()
+    );
+    println!("cargo:rustc-link-lib=static=gc");
 }
