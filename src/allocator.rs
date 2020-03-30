@@ -6,10 +6,10 @@ use std::{
 
 use crate::boehm;
 
-pub struct GlobalAllocator;
-pub struct GcAllocator;
+pub struct BoehmAllocator;
+pub(crate) struct BoehmGcAllocator;
 
-unsafe impl GlobalAlloc for GlobalAllocator {
+unsafe impl GlobalAlloc for BoehmAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         boehm::GC_malloc_uncollectable(layout.size()) as *mut u8
     }
@@ -23,7 +23,7 @@ unsafe impl GlobalAlloc for GlobalAllocator {
     }
 }
 
-unsafe impl AllocRef for GcAllocator {
+unsafe impl AllocRef for BoehmGcAllocator {
     fn alloc(&mut self, layout: Layout) -> Result<(NonNull<u8>, usize), AllocErr> {
         let ptr = unsafe { boehm::GC_malloc(layout.size()) } as *mut u8;
         assert!(!ptr.is_null());
