@@ -9,15 +9,15 @@
 #[cfg(not(all(target_pointer_width = "64", target_arch = "x86_64")))]
 compile_error!("Requires x86_64 with 64 bit pointer width.");
 
-pub mod gc;
-
-mod allocator;
 mod boehm;
 
+pub mod allocator;
+pub mod gc;
+
 pub use gc::Gc;
+pub use crate::allocator::BoehmAllocator;
 
-use crate::allocator::{GcAllocator, GlobalAllocator};
+use crate::allocator::BoehmGcAllocator;
 
-#[global_allocator]
-static ALLOCATOR: GlobalAllocator = GlobalAllocator;
-static mut GC_ALLOCATOR: GcAllocator = GcAllocator;
+static mut GC_ALLOCATOR: BoehmGcAllocator = BoehmGcAllocator;
+
