@@ -138,22 +138,6 @@ impl<T> GcBox<T> {
         ptr
     }
 
-    fn register_finalizer(&mut self) {
-        unsafe extern "C" fn fshim<T>(obj: *mut c_void, _meta: *mut c_void) {
-            ManuallyDrop::drop(&mut *(obj as *mut ManuallyDrop<T>));
-        }
-
-        unsafe {
-            boehm::GC_register_finalizer(
-                self as *mut _ as *mut ::std::ffi::c_void,
-                fshim::<T>,
-                ::std::ptr::null_mut(),
-                ::std::ptr::null_mut(),
-                ::std::ptr::null_mut(),
-            );
-        }
-    }
-
     fn new_from_layout(layout: Layout) -> NonNull<GcBox<MaybeUninit<T>>> {
         unsafe {
             let base_ptr = GC_ALLOCATOR.alloc(layout).unwrap().0.as_ptr() as *mut usize;
@@ -169,6 +153,32 @@ impl<T> GcBox<MaybeUninit<T>> {
         // GcDummyDrop vptr in the block header with it.
         self.register_finalizer();
         NonNull::new_unchecked(self as *mut _ as *mut GcBox<T>)
+    }
+}
+
+trait GcBoxExt {
+    fn register_finalizer(&mut self);
+}
+
+impl<T: NoFinalize> GcBoxExt for GcBox<T> {
+    fn register_finalizer(&mut self) {}
+}
+
+impl<T> GcBoxExt for GcBox<T> {
+    default fn register_finalizer(&mut self) {
+        unsafe extern "C" fn fshim<T>(obj: *mut c_void, _meta: *mut c_void) {
+            ManuallyDrop::drop(&mut *(obj as *mut ManuallyDrop<T>));
+        }
+
+        unsafe {
+            boehm::GC_register_finalizer(
+                self as *mut _ as *mut ::std::ffi::c_void,
+                fshim::<T>,
+                ::std::ptr::null_mut(),
+                ::std::ptr::null_mut(),
+                ::std::ptr::null_mut(),
+            );
+        }
     }
 }
 
@@ -196,3 +206,27 @@ impl<T: ?Sized> Clone for Gc<T> {
         *self
     }
 }
+
+// Implemented for types which do not require finalization.
+//
+// Finalization queues are a bottle-neck for GC so this can speed up collection
+// when implemented on types which have no field destructors. This is not
+// covariant.
+trait NoFinalize {}
+
+impl NoFinalize for char {}
+impl NoFinalize for u8 {}
+impl NoFinalize for u16 {}
+impl NoFinalize for u32 {}
+impl NoFinalize for u64 {}
+impl NoFinalize for u128 {}
+impl NoFinalize for usize {}
+impl NoFinalize for i8 {}
+impl NoFinalize for i16 {}
+impl NoFinalize for i32 {}
+impl NoFinalize for i64 {}
+impl NoFinalize for i128 {}
+impl NoFinalize for isize {}
+impl NoFinalize for f32 {}
+impl NoFinalize for f64 {}
+impl NoFinalize for bool {}
