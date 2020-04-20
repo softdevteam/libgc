@@ -15,10 +15,9 @@ mod boehm;
 pub mod allocator;
 pub mod gc;
 
-pub use gc::Gc;
 pub use crate::allocator::BoehmAllocator;
+pub use gc::Gc;
 
 use crate::allocator::BoehmGcAllocator;
 
 static mut GC_ALLOCATOR: BoehmGcAllocator = BoehmGcAllocator;
-

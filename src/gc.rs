@@ -1,5 +1,5 @@
 use std::{
-    alloc::{AllocRef, Layout},
+    alloc::{AllocInit, AllocRef, Layout},
     any::Any,
     ffi::c_void,
     fmt,
@@ -126,7 +126,13 @@ struct GcBox<T: ?Sized>(ManuallyDrop<T>);
 impl<T> GcBox<T> {
     fn new(value: T) -> *mut GcBox<T> {
         let layout = Layout::new::<T>();
-        let ptr = unsafe { GC_ALLOCATOR.alloc(layout).unwrap().0.as_ptr() } as *mut GcBox<T>;
+        let ptr = unsafe {
+            GC_ALLOCATOR
+                .alloc(layout, AllocInit::Uninitialized)
+                .unwrap()
+                .ptr
+                .as_ptr()
+        } as *mut GcBox<T>;
         let gcbox = GcBox(ManuallyDrop::new(value));
 
         unsafe {
@@ -140,7 +146,11 @@ impl<T> GcBox<T> {
 
     fn new_from_layout(layout: Layout) -> NonNull<GcBox<MaybeUninit<T>>> {
         unsafe {
-            let base_ptr = GC_ALLOCATOR.alloc(layout).unwrap().0.as_ptr() as *mut usize;
+            let base_ptr = GC_ALLOCATOR
+                .alloc(layout, AllocInit::Uninitialized)
+                .unwrap()
+                .ptr
+                .as_ptr() as *mut usize;
             NonNull::new_unchecked((base_ptr.add(1)) as *mut GcBox<MaybeUninit<T>>)
         }
     }
