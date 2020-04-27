@@ -3,6 +3,7 @@ use std::{
     any::Any,
     ffi::c_void,
     fmt,
+    hash::{Hash, Hasher},
     marker::PhantomData,
     mem::{forget, ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
@@ -214,6 +215,12 @@ impl<T: ?Sized> Copy for Gc<T> {}
 impl<T: ?Sized> Clone for Gc<T> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl<T: ?Sized + Hash> Hash for Gc<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (**self).hash(state);
     }
 }
 
