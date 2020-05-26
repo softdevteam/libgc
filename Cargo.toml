@@ -11,7 +11,3 @@ libc = "*"
 rerun_except = "0.1"
 num_cpus = "1.12"
 which = "3.1"
-
-[dev-dependencies]
-lang_tester = "0.3"
-tempdir = "0.3"
