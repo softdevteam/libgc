@@ -86,6 +86,15 @@ impl<T: ?Sized> Gc<T> {
         this.ptr.as_ptr() == other.ptr.as_ptr()
     }
 
+    /// Get a `Gc<T>` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `raw` was allocated with `Gc::new()` or
+    /// `Gc::new_from_layout()`.
+    ///
+    /// It is legal for `raw` to be an interior pointer if `T` is valid for the
+    /// size and alignment of the originally allocated block.
     pub fn from_raw(raw: *const T) -> Gc<T> {
         Gc {
             ptr: unsafe { NonNull::new_unchecked(raw as *mut GcBox<T>) },
