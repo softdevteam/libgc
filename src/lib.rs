@@ -1,6 +1,8 @@
 #![feature(core_intrinsics)]
 #![feature(allocator_api)]
 #![feature(alloc_layout_extra)]
+#![feature(arbitrary_self_types)]
+#![feature(dispatch_from_dyn)]
 #![feature(raw_vec_internals)]
 #![feature(const_fn)]
 #![feature(coerce_unsized)]
