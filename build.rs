@@ -39,23 +39,23 @@ fn main() {
                 .arg(BOEHM_ATOMICS_REPO)
                 .current_dir(&boehm_src)
         });
+
+        env::set_current_dir(&boehm_src).unwrap();
+
+        run("./autogen.sh", |cmd| cmd);
+        run("./configure", |cmd| {
+            cmd.arg("--enable-static")
+                .arg("--disable-shared")
+                .env("CFLAGS", POINTER_MASK)
+        });
+
+        let cpus = num_cpus::get();
+        let make_bin = match which("gmake") {
+            Ok(_) => "gmake",
+            Err(_) => "make",
+        };
+        run(make_bin, |cmd| cmd.arg("-j").arg(format!("{}", cpus)));
     }
-
-    env::set_current_dir(&boehm_src).unwrap();
-
-    run("./autogen.sh", |cmd| cmd);
-    run("./configure", |cmd| {
-        cmd.arg("--enable-static")
-            .arg("--disable-shared")
-            .env("CFLAGS", POINTER_MASK)
-    });
-
-    let cpus = num_cpus::get();
-    let make_bin = match which("gmake") {
-        Ok(_) => "gmake",
-        Err(_) => "make",
-    };
-    run(make_bin, |cmd| cmd.arg("-j").arg(format!("{}", cpus)));
 
     let mut libpath = PathBuf::from(&boehm_src);
     libpath.push(BUILD_DIR);
