@@ -171,7 +171,7 @@ impl<T> GcBox<T> {
                 .unwrap()
                 .ptr
                 .as_ptr() as *mut usize;
-            NonNull::new_unchecked((base_ptr.add(1)) as *mut GcBox<MaybeUninit<T>>)
+            NonNull::new_unchecked(base_ptr as *mut GcBox<MaybeUninit<T>>)
         }
     }
 }
