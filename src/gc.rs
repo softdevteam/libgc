@@ -71,6 +71,20 @@ impl<T> Gc<T> {
                 tl.align()
             );
         }
+        unsafe { Gc::new_from_layout_unchecked(layout) }
+    }
+
+    /// Constructs a new `Gc<MaybeUninit<T>>` which is capable of storing data
+    /// up-to the size permissible by `layout`.
+    ///
+    /// This can be useful if you want to store a value with a custom layout,
+    /// but have the collector treat the value as if it were T.
+    ///
+    /// # Safety
+    ///
+    /// The caller is responsible for ensuring that both `layout`'s size and
+    /// alignment must match or exceed that required to store `T`.
+    pub unsafe fn new_from_layout_unchecked(layout: Layout) -> Gc<MaybeUninit<T>> {
         Gc::from_inner(GcBox::new_from_layout(layout))
     }
 }
