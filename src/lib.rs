@@ -3,6 +3,7 @@
 #![feature(alloc_layout_extra)]
 #![feature(arbitrary_self_types)]
 #![feature(dispatch_from_dyn)]
+#![feature(nonnull_slice_from_raw_parts)]
 #![feature(raw_vec_internals)]
 #![feature(const_fn)]
 #![feature(coerce_unsized)]
