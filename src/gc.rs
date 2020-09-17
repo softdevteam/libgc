@@ -178,28 +178,12 @@ impl<T> GcBox<T> {
             NonNull::new_unchecked(base_ptr as *mut GcBox<MaybeUninit<T>>)
         }
     }
-}
 
-impl<T> GcBox<MaybeUninit<T>> {
-    unsafe fn assume_init(&mut self) -> NonNull<GcBox<T>> {
-        // With T now considered initialized, we must make sure that if GcBox<T>
-        // is reclaimed, T will be dropped. We need to find its vptr and replace the
-        // GcDummyDrop vptr in the block header with it.
-        self.register_finalizer();
-        NonNull::new_unchecked(self as *mut _ as *mut GcBox<T>)
-    }
-}
+    fn register_finalizer(&mut self) {
+        if !core::mem::needs_drop::<T>() {
+            return;
+        }
 
-trait GcBoxExt {
-    fn register_finalizer(&mut self);
-}
-
-impl<T: NoFinalize> GcBoxExt for GcBox<T> {
-    fn register_finalizer(&mut self) {}
-}
-
-impl<T> GcBoxExt for GcBox<T> {
-    default fn register_finalizer(&mut self) {
         unsafe extern "C" fn fshim<T>(obj: *mut c_void, _meta: *mut c_void) {
             ManuallyDrop::drop(&mut *(obj as *mut ManuallyDrop<T>));
         }
@@ -213,6 +197,16 @@ impl<T> GcBoxExt for GcBox<T> {
                 ::std::ptr::null_mut(),
             );
         }
+    }
+}
+
+impl<T> GcBox<MaybeUninit<T>> {
+    unsafe fn assume_init(&mut self) -> NonNull<GcBox<T>> {
+        // Now that T is initialized, we must make sure that it's dropped when
+        // `GcBox<T>` is freed.
+        let init = self as *mut _ as *mut GcBox<T>;
+        GcBox::register_finalizer(&mut *init);
+        NonNull::new_unchecked(init)
     }
 }
 
@@ -246,30 +240,6 @@ impl<T: ?Sized + Hash> Hash for Gc<T> {
         (**self).hash(state);
     }
 }
-
-// Implemented for types which do not require finalization.
-//
-// Finalization queues are a bottle-neck for GC so this can speed up collection
-// when implemented on types which have no field destructors. This is not
-// covariant.
-trait NoFinalize {}
-
-impl NoFinalize for char {}
-impl NoFinalize for u8 {}
-impl NoFinalize for u16 {}
-impl NoFinalize for u32 {}
-impl NoFinalize for u64 {}
-impl NoFinalize for u128 {}
-impl NoFinalize for usize {}
-impl NoFinalize for i8 {}
-impl NoFinalize for i16 {}
-impl NoFinalize for i32 {}
-impl NoFinalize for i64 {}
-impl NoFinalize for i128 {}
-impl NoFinalize for isize {}
-impl NoFinalize for f32 {}
-impl NoFinalize for f64 {}
-impl NoFinalize for bool {}
 
 #[cfg(test)]
 mod test {
