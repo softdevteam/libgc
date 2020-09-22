@@ -99,6 +99,16 @@ impl Gc<dyn Any> {
     }
 }
 
+#[cfg(not(feature = "rustc_boehm"))]
+pub fn needs_finalizer<T>() -> bool {
+    std::mem::needs_drop::<T>()
+}
+
+#[cfg(feature = "rustc_boehm")]
+pub fn needs_finalizer<T>() -> bool {
+    std::mem::needs_finalizer::<T>()
+}
+
 impl<T: ?Sized> Gc<T> {
     /// Get a raw pointer to the underlying value `T`.
     pub fn into_raw(this: Self) -> *const T {
