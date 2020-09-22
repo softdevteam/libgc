@@ -4,6 +4,11 @@ version = "0.1.0"
 authors = ["Jacob Hughes <jh@jakehughes.uk>"]
 edition = "2018"
 
+[features]
+# Enable this feature to turn on additional GC optimizations that are only
+# possible with the rustc_boehm fork of the compiler.
+rustc_boehm = []
+
 [dependencies]
 libc = "*"
 

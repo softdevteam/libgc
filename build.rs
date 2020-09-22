@@ -25,6 +25,12 @@ where
 }
 
 fn main() {
+    if env::var_os("CARGO_FEATURE_RUSTC_BOEHM").is_some() {
+        // The Boehm GC is already linked statically through the rustc_boehm
+        // fork, so there's no need to build it again here.
+        return;
+    }
+
     let out_dir = env::var("OUT_DIR").unwrap();
     let mut boehm_src = PathBuf::from(out_dir);
     boehm_src.push(BOEHM_DIR);

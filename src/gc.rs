@@ -1,7 +1,6 @@
 use std::{
     alloc::{AllocRef, Layout},
     any::Any,
-    ffi::c_void,
     fmt,
     hash::{Hash, Hasher},
     marker::{PhantomData, Unsize},
@@ -115,7 +114,7 @@ impl<T: ?Sized> Gc<T> {
     /// # Safety
     ///
     /// The caller must guarantee that `raw` was allocated with `Gc::new()` or
-    /// `Gc::new_from_layout()`.
+    /// u8 `Gc::new_from_layout()`.
     ///
     /// It is legal for `raw` to be an interior pointer if `T` is valid for the
     /// size and alignment of the originally allocated block.
@@ -184,13 +183,13 @@ impl<T> GcBox<T> {
             return;
         }
 
-        unsafe extern "C" fn fshim<T>(obj: *mut c_void, _meta: *mut c_void) {
+        unsafe extern "C" fn fshim<T>(obj: *mut u8, _meta: *mut u8) {
             ManuallyDrop::drop(&mut *(obj as *mut ManuallyDrop<T>));
         }
 
         unsafe {
-            boehm::GC_register_finalizer(
-                self as *mut _ as *mut ::std::ffi::c_void,
+            boehm::gc_register_finalizer(
+                self as *mut _ as *mut u8,
                 fshim::<T>,
                 ::std::ptr::null_mut(),
                 ::std::ptr::null_mut(),
