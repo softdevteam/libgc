@@ -1,3 +1,4 @@
+#![cfg_attr(feature = "rustc_boehm", feature(gc))]
 #![feature(core_intrinsics)]
 #![feature(allocator_api)]
 #![feature(alloc_layout_extra)]
