@@ -86,6 +86,13 @@ impl<T> Gc<T> {
     pub unsafe fn new_from_layout_unchecked(layout: Layout) -> Gc<MaybeUninit<T>> {
         Gc::from_inner(GcBox::new_from_layout(layout))
     }
+
+    pub fn unregister_finalizer(&mut self) {
+        let ptr = self.ptr.as_ptr() as *mut GcBox<T>;
+        unsafe {
+            GcBox::unregister_finalizer(&mut *ptr);
+        }
+    }
 }
 
 impl Gc<dyn Any> {
@@ -201,6 +208,18 @@ impl<T> GcBox<T> {
             boehm::gc_register_finalizer(
                 self as *mut _ as *mut u8,
                 Some(fshim::<T>),
+                ::std::ptr::null_mut(),
+                ::std::ptr::null_mut(),
+                ::std::ptr::null_mut(),
+            );
+        }
+    }
+
+    fn unregister_finalizer(&mut self) {
+        unsafe {
+            boehm::gc_register_finalizer(
+                self as *mut _ as *mut u8,
+                None,
                 ::std::ptr::null_mut(),
                 ::std::ptr::null_mut(),
                 ::std::ptr::null_mut(),
