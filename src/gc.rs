@@ -190,7 +190,7 @@ impl<T> GcBox<T> {
         unsafe {
             boehm::gc_register_finalizer(
                 self as *mut _ as *mut u8,
-                fshim::<T>,
+                Some(fshim::<T>),
                 ::std::ptr::null_mut(),
                 ::std::ptr::null_mut(),
                 ::std::ptr::null_mut(),
