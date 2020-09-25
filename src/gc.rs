@@ -12,6 +12,15 @@ use std::{
 use crate::boehm;
 use crate::GC_ALLOCATOR;
 
+/// This is usually a no-op, but if `gc_stats` is enabled it will setup the GC
+/// for profiliing.
+pub fn gc_init() {
+    #[cfg(feature = "gc_stats")]
+    unsafe {
+        boehm::gc_start_performance_measurement();
+    }
+}
+
 /// A garbage collected pointer.
 ///
 /// The type `Gc<T>` provides shared ownership of a value of type `T`,
@@ -213,6 +222,9 @@ impl<T> GcBox<T> {
                 ::std::ptr::null_mut(),
             );
         }
+
+        #[cfg(feature = "gc_stats")]
+        crate::stats::NUM_REGISTERED_FINALIZERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn unregister_finalizer(&mut self) {

@@ -17,8 +17,9 @@ mod boehm;
 
 #[cfg(not(feature = "rustc_boehm"))]
 pub mod allocator;
-
 pub mod gc;
+#[cfg(feature = "gc_stats")]
+pub mod stats;
 
 pub use gc::Gc;
 
