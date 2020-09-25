@@ -23,12 +23,12 @@ unsafe impl GlobalAlloc for BoehmAllocator {
 }
 
 unsafe impl AllocRef for BoehmGcAllocator {
-    fn alloc(&mut self, layout: Layout) -> Result<NonNull<[u8]>, AllocErr> {
+    fn alloc(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocErr> {
         let ptr = unsafe { boehm::gc_malloc(layout.size()) } as *mut u8;
         assert!(!ptr.is_null());
         let ptr = unsafe { NonNull::new_unchecked(ptr) };
         Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
     }
 
-    unsafe fn dealloc(&mut self, _: NonNull<u8>, _: Layout) {}
+    unsafe fn dealloc(&self, _: NonNull<u8>, _: Layout) {}
 }
