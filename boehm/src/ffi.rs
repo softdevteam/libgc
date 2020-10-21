@@ -44,21 +44,48 @@ pub unsafe fn gc_register_finalizer(
 }
 
 #[cfg(not(feature = "rustc_boehm"))]
-#[cfg(feature = "gc_stats")]
 pub unsafe fn gc_start_performance_measurement() {
     GC_start_performance_measurement();
 }
 
 #[cfg(not(feature = "rustc_boehm"))]
-#[cfg(feature = "gc_stats")]
 pub unsafe fn gc_get_full_gc_total_time() -> usize {
     GC_get_full_gc_total_time()
 }
 
 #[cfg(not(feature = "rustc_boehm"))]
-#[cfg(feature = "gc_stats")]
 pub unsafe fn gc_get_prof_stats(prof_stats: *mut ProfileStats, stats_size: usize) -> usize {
     GC_get_prof_stats(prof_stats, stats_size)
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct ProfileStats {
+    /// Heap size in bytes (including area unmapped to OS).
+    pub(crate) heapsize_full: usize,
+    /// Total bytes contained in free and unmapped blocks.
+    pub(crate) free_bytes_full: usize,
+    /// Amount of memory unmapped to OS.
+    pub(crate) unmapped_bytes: usize,
+    /// Number of bytes allocated since the recent collection.
+    pub(crate) bytes_allocd_since_gc: usize,
+    /// Number of bytes allocated before the recent collection.
+    /// The value may wrap.
+    pub(crate) allocd_bytes_before_gc: usize,
+    /// Number of bytes not considered candidates for garbage collection.
+    pub(crate) non_gc_bytes: usize,
+    /// Garbage collection cycle number.
+    /// The value may wrap.
+    pub(crate) gc_no: usize,
+    /// Number of marker threads (excluding the initiating one).
+    pub(crate) markers_m1: usize,
+    /// Approximate number of reclaimed bytes after recent collection.
+    pub(crate) bytes_reclaimed_since_gc: usize,
+    /// Approximate number of bytes reclaimed before the recent collection.
+    /// The value may wrap.
+    pub(crate) reclaimed_bytes_before_gc: usize,
+    /// Number of bytes freed explicitly since the recent GC.
+    pub(crate) expl_freed_bytes_since_gc: usize,
 }
 
 #[link(name = "gc")]
@@ -80,12 +107,9 @@ extern "C" {
         old_client_data: *mut *mut u8,
     );
 
-    #[cfg(feature = "gc_stats")]
     fn GC_start_performance_measurement();
 
-    #[cfg(feature = "gc_stats")]
     fn GC_get_full_gc_total_time() -> usize;
 
-    #[cfg(feature = "gc_stats")]
     fn GC_get_prof_stats(prof_stats: *mut ProfileStats, stats_size: usize) -> usize;
 }
