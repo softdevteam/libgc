@@ -13,10 +13,6 @@
 #[cfg(not(all(target_pointer_width = "64", target_arch = "x86_64")))]
 compile_error!("Requires x86_64 with 64 bit pointer width.");
 
-mod boehm;
-
-#[cfg(not(feature = "rustc_boehm"))]
-pub mod allocator;
 pub mod gc;
 #[cfg(feature = "gc_stats")]
 pub mod stats;
@@ -29,8 +25,8 @@ pub use std::boehm::BoehmAllocator;
 pub use std::boehm::BoehmGcAllocator;
 
 #[cfg(not(feature = "rustc_boehm"))]
-pub use crate::allocator::BoehmAllocator;
+pub use boehm::allocator::BoehmAllocator;
 #[cfg(not(feature = "rustc_boehm"))]
-use crate::allocator::BoehmGcAllocator;
+use boehm::allocator::BoehmGcAllocator;
 
 static mut GC_ALLOCATOR: BoehmGcAllocator = BoehmGcAllocator;

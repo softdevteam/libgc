@@ -9,16 +9,13 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::boehm;
 use crate::GC_ALLOCATOR;
 
 /// This is usually a no-op, but if `gc_stats` is enabled it will setup the GC
 /// for profiliing.
 pub fn gc_init() {
-    #[cfg(feature = "gc_stats")]
-    unsafe {
-        boehm::gc_start_performance_measurement();
-    }
+    #[cfg(all(feature = "gc_stats", feature = "boehm"))]
+    boehm::init();
 }
 
 /// A garbage collected pointer.
@@ -205,38 +202,16 @@ impl<T> GcBox<T> {
     }
 
     fn register_finalizer(&mut self) {
-        if !core::mem::needs_drop::<T>() {
-            return;
-        }
-
-        unsafe extern "C" fn fshim<T>(obj: *mut u8, _meta: *mut u8) {
-            ManuallyDrop::drop(&mut *(obj as *mut ManuallyDrop<T>));
-        }
-
-        unsafe {
-            boehm::gc_register_finalizer(
-                self as *mut _ as *mut u8,
-                Some(fshim::<T>),
-                ::std::ptr::null_mut(),
-                ::std::ptr::null_mut(),
-                ::std::ptr::null_mut(),
-            );
-        }
-
         #[cfg(feature = "gc_stats")]
         crate::stats::NUM_REGISTERED_FINALIZERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+        #[cfg(feature = "boehm")]
+        boehm::register_finalizer(self as *mut _ as *mut T);
     }
 
     fn unregister_finalizer(&mut self) {
-        unsafe {
-            boehm::gc_register_finalizer(
-                self as *mut _ as *mut u8,
-                None,
-                ::std::ptr::null_mut(),
-                ::std::ptr::null_mut(),
-                ::std::ptr::null_mut(),
-            );
-        }
+        #[cfg(feature = "boehm")]
+        boehm::unregister_finalizer(self as *mut _ as *mut u8);
     }
 }
 
