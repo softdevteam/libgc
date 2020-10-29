@@ -25,9 +25,9 @@ where
 }
 
 fn main() {
-    if env::var_os("CARGO_FEATURE_RUSTC_BOEHM").is_some() {
-        // The Boehm GC is already linked statically through the rustc_boehm
-        // fork, so there's no need to build it again here.
+    if env::var_os("CARGO_FEATURE_USE_BOEHM").is_none() {
+        // The Boehm GC should only be built and linked if compiled with that
+        // feature flag.
         return;
     }
 
