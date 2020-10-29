@@ -18,7 +18,7 @@ pub fn register_finalizer<T>(gcbox: *mut T) {
     }
 
     unsafe {
-        ffi::GC_register_finalizer(
+        ffi::GC_register_finalizer_no_order(
             gcbox as *mut u8,
             Some(fshim::<T>),
             ::std::ptr::null_mut(),
@@ -30,7 +30,7 @@ pub fn register_finalizer<T>(gcbox: *mut T) {
 
 pub fn unregister_finalizer(gcbox: *mut u8) {
     unsafe {
-        ffi::GC_register_finalizer(
+        ffi::GC_register_finalizer_no_order(
             gcbox,
             None,
             ::std::ptr::null_mut(),
