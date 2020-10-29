@@ -18,7 +18,7 @@ pub fn register_finalizer<T>(gcbox: *mut T) {
     }
 
     unsafe {
-        ffi::gc_register_finalizer(
+        ffi::GC_register_finalizer(
             gcbox as *mut u8,
             Some(fshim::<T>),
             ::std::ptr::null_mut(),
@@ -30,7 +30,7 @@ pub fn register_finalizer<T>(gcbox: *mut T) {
 
 pub fn unregister_finalizer(gcbox: *mut u8) {
     unsafe {
-        ffi::gc_register_finalizer(
+        ffi::GC_register_finalizer(
             gcbox,
             None,
             ::std::ptr::null_mut(),
@@ -51,12 +51,12 @@ impl BoehmStats {
     pub fn gen() -> Self {
         let mut ps = ProfileStats::default();
         unsafe {
-            ffi::gc_get_prof_stats(
+            ffi::GC_get_prof_stats(
                 &mut ps as *mut ProfileStats,
                 std::mem::size_of::<ProfileStats>(),
             );
         }
-        let total_gc_time = unsafe { ffi::gc_get_full_gc_total_time() };
+        let total_gc_time = unsafe { ffi::GC_get_full_gc_total_time() };
 
         BoehmStats {
             total_gc_time,
@@ -68,5 +68,5 @@ impl BoehmStats {
 }
 
 pub fn init() {
-    unsafe { ffi::gc_start_performance_measurement() };
+    unsafe { ffi::GC_start_performance_measurement() };
 }

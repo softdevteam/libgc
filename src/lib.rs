@@ -19,14 +19,7 @@ pub mod stats;
 
 pub use gc::Gc;
 
-#[cfg(feature = "rustc_boehm")]
-pub use std::boehm::BoehmAllocator;
-#[cfg(feature = "rustc_boehm")]
-pub use std::boehm::BoehmGcAllocator;
-
-#[cfg(not(feature = "rustc_boehm"))]
 pub use boehm::allocator::BoehmAllocator;
-#[cfg(not(feature = "rustc_boehm"))]
 use boehm::allocator::BoehmGcAllocator;
 
 static mut GC_ALLOCATOR: BoehmGcAllocator = BoehmGcAllocator;
