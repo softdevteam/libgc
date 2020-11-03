@@ -49,6 +49,14 @@ extern "C" {
         old_client_data: *mut *mut u8,
     );
 
+    pub(crate) fn GC_register_finalizer_no_order(
+        ptr: *mut u8,
+        finalizer: Option<unsafe extern "C" fn(*mut u8, *mut u8)>,
+        client_data: *mut u8,
+        old_finalizer: *mut extern "C" fn(*mut u8, *mut u8),
+        old_client_data: *mut *mut u8,
+    );
+
     pub(crate) fn GC_start_performance_measurement();
 
     pub(crate) fn GC_get_full_gc_total_time() -> usize;
