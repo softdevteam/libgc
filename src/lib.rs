@@ -25,6 +25,9 @@ pub use gc::Gc;
 pub use gc::GcLayout;
 pub use gc::LayoutInfo;
 
+#[cfg(feature = "use_boehm")]
+pub use boehm::force_gc;
+
 pub use boehm::allocator::BoehmAllocator;
 use boehm::allocator::BoehmGcAllocator;
 use boehm::allocator::PreciseAllocator;

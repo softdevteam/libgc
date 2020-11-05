@@ -58,4 +58,6 @@ extern "C" {
     pub(crate) fn GC_malloc_explicitly_typed(size: usize, descriptor: usize) -> *mut u8;
 
     pub(crate) fn GC_make_descriptor(bitmap: *const usize, len: usize) -> usize;
+
+    pub(crate) fn GC_gcollect();
 }
