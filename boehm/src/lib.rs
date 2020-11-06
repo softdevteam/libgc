@@ -40,6 +40,10 @@ pub fn unregister_finalizer(gcbox: *mut u8) {
     }
 }
 
+pub fn force_gc() {
+    unsafe { ffi::GC_gcollect() }
+}
+
 pub struct BoehmStats {
     pub total_gc_time: usize, // In milliseconds.
     pub num_collections: usize,
