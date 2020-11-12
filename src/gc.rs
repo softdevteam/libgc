@@ -179,31 +179,33 @@ impl<T: ?Sized + fmt::Display> fmt::Display for Gc<T> {
 /// running unless the object is really dead.
 struct GcBox<T: ?Sized>(ManuallyDrop<T>);
 
-trait GcBoxAllocator {
-    fn alloc(layout: Layout) -> Result<NonNull<[u8]>, AllocError>;
+trait GcBoxAllocator<T> {
+    fn alloc_dispatch(value: &T) -> Result<NonNull<[u8]>, AllocError>;
 }
 
-impl<T> GcBoxAllocator for GcBox<T> {
-    default fn alloc(layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+impl<T> GcBoxAllocator<T> for GcBox<T> {
+    default fn alloc_dispatch(_value: &T) -> Result<NonNull<[u8]>, AllocError> {
+        let layout = Layout::new::<T>();
         GC_ALLOCATOR.alloc(layout)
     }
 }
 
-impl<T: GcLayout> GcBoxAllocator for GcBox<T> {
-    fn alloc(layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        match T::layout_info() {
+impl<T: GcLayout> GcBoxAllocator<T> for GcBox<T> {
+    fn alloc_dispatch(value: &T) -> Result<NonNull<[u8]>, AllocError> {
+        let layout = Layout::new::<T>();
+        match GcLayout::layout_info(value) {
             LayoutInfo::PartiallyTraceable(boundary) => unsafe {
                 PRECISE_ALLOCATOR.alloc_partially_traceable(layout, boundary)
             },
             LayoutInfo::Conservative => GC_ALLOCATOR.alloc(layout),
+            LayoutInfo::Precise { .. } => unimplemented!(),
         }
     }
 }
 
 impl<T> GcBox<T> {
     fn new(value: T) -> *mut GcBox<T> {
-        let layout = Layout::new::<T>();
-        let ptr = Self::alloc(layout).unwrap().as_ptr() as *mut GcBox<T>;
+        let ptr = Self::alloc_dispatch(&value).unwrap().as_ptr() as *mut GcBox<T>;
         let gcbox = GcBox(ManuallyDrop::new(value));
 
         unsafe {
@@ -236,6 +238,7 @@ impl<T> GcBox<T> {
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub enum LayoutInfo {
     /// A partially traceable type is conservatively traced up until a specified
     /// word boundary.
@@ -243,6 +246,24 @@ pub enum LayoutInfo {
     /// The default tracing mechanism. This has the same effect as not
     /// implementing `GcLayout`.
     Conservative,
+    Precise {
+        bitmap: usize,
+        trace_len: usize,
+    },
+}
+
+impl fmt::Debug for LayoutInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LayoutInfo::Precise { bitmap, trace_len } => write!(
+                f,
+                "Precise{{ bitmap:{:#X}, trace_len {} }})",
+                bitmap, trace_len
+            ),
+            LayoutInfo::Conservative => write!(f, "Conservative"),
+            LayoutInfo::PartiallyTraceable(len) => write!(f, "PartiallyTraceable({})", len),
+        }
+    }
 }
 
 /// Used to pass more specific layout information about a type to the collector.
@@ -252,7 +273,7 @@ pub enum LayoutInfo {
 /// This is very unsafe. Incorrect layout information can lead to the GC missing
 /// pointers, resulting in unsoundness.
 pub unsafe trait GcLayout {
-    fn layout_info() -> LayoutInfo;
+    fn layout_info(&self) -> LayoutInfo;
 }
 
 impl<T> GcBox<MaybeUninit<T>> {
