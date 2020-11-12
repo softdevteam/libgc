@@ -372,4 +372,105 @@ mod test {
         assert_eq!(s1gcd.f(), 1);
         assert_eq!(s2gcd.f(), 2);
     }
+
+    #[test]
+    fn precise_layout() {
+        #[derive(GcLayout)]
+        struct A {
+            #[no_trace]
+            x: usize,
+            #[no_trace]
+            y: usize,
+            #[no_trace]
+            z: usize,
+        }
+
+        #[derive(GcLayout)]
+        struct B {
+            x: usize,
+            #[no_trace]
+            y: usize,
+            z: usize,
+        }
+        let a = A {
+            x: 123,
+            y: 456,
+            z: 789,
+        };
+        assert_eq!(
+            a.layout_info(),
+            LayoutInfo::Precise {
+                bitmap: 0xFFFFFFF8,
+                trace_len: 3
+            }
+        );
+
+        let b = B {
+            x: 123,
+            y: 456,
+            z: 789,
+        };
+        assert_eq!(
+            b.layout_info(),
+            LayoutInfo::Precise {
+                bitmap: 0xFFFFFFFD,
+                trace_len: 3
+            }
+        );
+    }
+
+    #[test]
+    fn precise_layout_unsized() {
+        #[derive(GcLayout)]
+        struct StaticallyUnsized<T: ?Sized> {
+            x: usize,
+            #[no_trace]
+            y: T,
+        }
+
+        let s: StaticallyUnsized<[usize; 8]> = StaticallyUnsized { x: 123, y: [0; 8] };
+        let dynamic: &StaticallyUnsized<[usize]> = &s;
+        assert_eq!(
+            dynamic.layout_info(),
+            LayoutInfo::Precise {
+                bitmap: 0xFFFFFE01,
+                trace_len: 9
+            }
+        );
+    }
+
+    #[test]
+    fn conservative_layout() {
+        #[derive(GcLayout)]
+        struct A {
+            x: usize,
+            y: usize,
+            z: usize,
+        }
+
+        let a = A {
+            x: 123,
+            y: 456,
+            z: 789,
+        };
+        assert_eq!(a.layout_info(), LayoutInfo::Conservative);
+    }
+
+    #[test]
+    fn partially_traceable_layout() {
+        #[derive(GcLayout)]
+        struct A {
+            x: usize,
+            #[trace_end] // Stop tracing *AFTER* y
+            y: usize,
+            z: usize,
+        }
+
+        let a = A {
+            x: 123,
+            y: 456,
+            z: 789,
+        };
+        assert_eq!(a.layout_info(), LayoutInfo::PartiallyTraceable(2));
+    }
 }
