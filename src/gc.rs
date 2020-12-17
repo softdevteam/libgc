@@ -1,5 +1,5 @@
 use std::{
-    alloc::{AllocError, AllocRef, Layout},
+    alloc::{AllocRef, Layout},
     any::Any,
     fmt,
     hash::{Hash, Hasher},
@@ -9,7 +9,7 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::{GC_ALLOCATOR, PRECISE_ALLOCATOR};
+use crate::GC_ALLOCATOR;
 
 /// This is usually a no-op, but if `gc_stats` is enabled it will setup the GC
 /// for profiliing.
@@ -179,31 +179,10 @@ impl<T: ?Sized + fmt::Display> fmt::Display for Gc<T> {
 /// running unless the object is really dead.
 struct GcBox<T: ?Sized>(ManuallyDrop<T>);
 
-trait GcBoxAllocator {
-    fn alloc(layout: Layout) -> Result<NonNull<[u8]>, AllocError>;
-}
-
-impl<T> GcBoxAllocator for GcBox<T> {
-    default fn alloc(layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        GC_ALLOCATOR.alloc(layout)
-    }
-}
-
-impl<T: GcLayout> GcBoxAllocator for GcBox<T> {
-    fn alloc(layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        match T::layout_info() {
-            LayoutInfo::PartiallyTraceable(boundary) => unsafe {
-                PRECISE_ALLOCATOR.alloc_partially_traceable(layout, boundary)
-            },
-            LayoutInfo::Conservative => GC_ALLOCATOR.alloc(layout),
-        }
-    }
-}
-
 impl<T> GcBox<T> {
     fn new(value: T) -> *mut GcBox<T> {
         let layout = Layout::new::<T>();
-        let ptr = Self::alloc(layout).unwrap().as_ptr() as *mut GcBox<T>;
+        let ptr = unsafe { GC_ALLOCATOR.alloc(layout).unwrap().as_ptr() } as *mut GcBox<T>;
         let gcbox = GcBox(ManuallyDrop::new(value));
 
         unsafe {
@@ -234,25 +213,6 @@ impl<T> GcBox<T> {
         #[cfg(feature = "boehm")]
         boehm::unregister_finalizer(self as *mut _ as *mut u8);
     }
-}
-
-pub enum LayoutInfo {
-    /// A partially traceable type is conservatively traced up until a specified
-    /// word boundary.
-    PartiallyTraceable(usize),
-    /// The default tracing mechanism. This has the same effect as not
-    /// implementing `GcLayout`.
-    Conservative,
-}
-
-/// Used to pass more specific layout information about a type to the collector.
-///
-/// # Safety
-///
-/// This is very unsafe. Incorrect layout information can lead to the GC missing
-/// pointers, resulting in unsoundness.
-pub unsafe trait GcLayout {
-    fn layout_info() -> LayoutInfo;
 }
 
 impl<T> GcBox<MaybeUninit<T>> {
