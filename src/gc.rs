@@ -205,13 +205,27 @@ impl<T> GcBox<T> {
         #[cfg(feature = "gc_stats")]
         crate::stats::NUM_REGISTERED_FINALIZERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        #[cfg(feature = "boehm")]
-        boehm::register_finalizer(self as *mut _ as *mut T);
+        if !needs_finalizer::<T>() {
+            return;
+        }
+
+        unsafe extern "C" fn fshim<T>(obj: *mut u8, _meta: *mut u8) {
+            ManuallyDrop::drop(&mut *(obj as *mut ManuallyDrop<T>));
+        }
+
+        unsafe {
+            GC_ALLOCATOR.register_finalizer(
+                self as *mut _ as *mut u8,
+                Some(fshim::<T>),
+                ::std::ptr::null_mut(),
+                ::std::ptr::null_mut(),
+                ::std::ptr::null_mut(),
+            )
+        }
     }
 
     fn unregister_finalizer(&mut self) {
-        #[cfg(feature = "boehm")]
-        boehm::unregister_finalizer(self as *mut _ as *mut u8);
+        unsafe { GC_ALLOCATOR.unregister_finalizer(self as *mut _ as *mut u8) };
     }
 }
 

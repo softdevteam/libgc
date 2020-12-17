@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Jacob Hughes <jh@jakehughes.uk>"]
 edition = "2018"
 
-[workspace]
-members = ["boehm"]
-
 [features]
 # Enable this feature to turn on additional GC optimizations that are only
 # possible with the rustc_boehm fork of the compiler.
@@ -16,12 +13,9 @@ rustc_boehm = []
 # a run-time cost and are expected to only be used for profiling purposes.
 gc_stats = []
 
-# Use boehm as a backend
-use_boehm = ["boehm"]
-
 [dependencies]
 libc = "*"
-boehm = { path = "boehm", optional = true }
+boehm_allocator = { path = "/home/jake/research/boehm_allocator" }
 
 [build-dependencies]
 rerun_except = "0.1"
