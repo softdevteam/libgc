@@ -1,5 +1,5 @@
 use std::{
-    alloc::{AllocError, AllocRef, GlobalAlloc, Layout},
+    alloc::{AllocError, Allocator, GlobalAlloc, Layout},
     ptr::NonNull,
 };
 
@@ -22,13 +22,13 @@ unsafe impl GlobalAlloc for BoehmAllocator {
     }
 }
 
-unsafe impl AllocRef for BoehmGcAllocator {
-    fn alloc(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+unsafe impl Allocator for BoehmGcAllocator {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         let ptr = unsafe { ffi::GC_malloc(layout.size()) } as *mut u8;
         assert!(!ptr.is_null());
         let ptr = unsafe { NonNull::new_unchecked(ptr) };
         Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
     }
 
-    unsafe fn dealloc(&self, _: NonNull<u8>, _: Layout) {}
+    unsafe fn deallocate(&self, _: NonNull<u8>, _: Layout) {}
 }
