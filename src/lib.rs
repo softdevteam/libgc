@@ -19,7 +19,8 @@ pub mod stats;
 
 pub use gc::Gc;
 
-pub use boehm_allocator::BoehmGlobalAllocator;
-use boehm_allocator::BoehmGcAllocator;
+use libgc_internal::GcAllocator;
+pub use libgc_internal::GlobalAllocator;
 
-static mut GC_ALLOCATOR: BoehmGcAllocator = BoehmGcAllocator;
+static GC_ALLOCATOR: GcAllocator = GcAllocator;
+pub static GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator;
