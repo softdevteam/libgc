@@ -12,7 +12,7 @@ sh rustup.sh --default-host x86_64-unknown-linux-gnu \
     --profile minimal \
     -y
 export PATH=`pwd`/.cargo/bin/:$PATH
-cargo check --features use_boehm
+cargo check
 
 rustup toolchain install nightly --allow-downgrade --component rustfmt
 cargo +nightly fmt --all -- --check

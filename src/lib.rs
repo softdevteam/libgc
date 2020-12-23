@@ -19,10 +19,8 @@ pub mod stats;
 
 pub use gc::Gc;
 
-#[cfg(feature = "use_boehm")]
-pub use boehm::force_gc;
+use libgc_internal::GcAllocator;
+pub use libgc_internal::GlobalAllocator;
 
-pub use boehm::allocator::BoehmAllocator;
-use boehm::allocator::BoehmGcAllocator;
-
-static mut GC_ALLOCATOR: BoehmGcAllocator = BoehmGcAllocator;
+static GC_ALLOCATOR: GcAllocator = GcAllocator;
+pub static GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator;
