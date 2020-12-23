@@ -112,12 +112,12 @@ impl Gc<dyn Any> {
     }
 }
 
-#[cfg(not(feature = "rustc_boehm"))]
+#[cfg(not(feature = "rustgc"))]
 pub fn needs_finalizer<T>() -> bool {
     std::mem::needs_drop::<T>()
 }
 
-#[cfg(feature = "rustc_boehm")]
+#[cfg(feature = "rustgc")]
 pub fn needs_finalizer<T>() -> bool {
     std::mem::needs_finalizer::<T>()
 }
