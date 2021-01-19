@@ -26,4 +26,4 @@ rustup toolchain link rustgc rustgc/build/x86_64-unknown-linux-gnu/stage1
 
 cargo clean
 
-cargo +rustgc test --features "rustgc"
+cargo +rustgc test --features "rustgc" -- --test-threads=1
