@@ -9,7 +9,7 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::GC_ALLOCATOR;
+use crate::ALLOCATOR;
 
 /// This is usually a no-op, but if `gc_stats` is enabled it will setup the GC
 /// for profiliing.
@@ -182,7 +182,7 @@ struct GcBox<T: ?Sized>(ManuallyDrop<T>);
 impl<T> GcBox<T> {
     fn new(value: T) -> *mut GcBox<T> {
         let layout = Layout::new::<T>();
-        let ptr = unsafe { GC_ALLOCATOR.allocate(layout).unwrap().as_ptr() } as *mut GcBox<T>;
+        let ptr = ALLOCATOR.allocate(layout).unwrap().as_ptr() as *mut GcBox<T>;
         let gcbox = GcBox(ManuallyDrop::new(value));
 
         unsafe {
@@ -196,7 +196,7 @@ impl<T> GcBox<T> {
 
     fn new_from_layout(layout: Layout) -> NonNull<GcBox<MaybeUninit<T>>> {
         unsafe {
-            let base_ptr = GC_ALLOCATOR.allocate(layout).unwrap().as_ptr() as *mut usize;
+            let base_ptr = ALLOCATOR.allocate(layout).unwrap().as_ptr() as *mut usize;
             NonNull::new_unchecked(base_ptr as *mut GcBox<MaybeUninit<T>>)
         }
     }
@@ -214,7 +214,7 @@ impl<T> GcBox<T> {
         }
 
         unsafe {
-            GC_ALLOCATOR.register_finalizer(
+            ALLOCATOR.register_finalizer(
                 self as *mut _ as *mut u8,
                 Some(fshim::<T>),
                 ::std::ptr::null_mut(),
@@ -225,7 +225,7 @@ impl<T> GcBox<T> {
     }
 
     fn unregister_finalizer(&mut self) {
-        unsafe { GC_ALLOCATOR.unregister_finalizer(self as *mut _ as *mut u8) };
+        ALLOCATOR.unregister_finalizer(self as *mut _ as *mut u8);
     }
 }
 

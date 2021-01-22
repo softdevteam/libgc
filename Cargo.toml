@@ -15,7 +15,6 @@ gc_stats = []
 
 [dependencies]
 libc = "*"
-libgc_internal = { git = "https://github.com/softdevteam/libgc_internal" }
 
 [build-dependencies]
 rerun_except = "0.1"
