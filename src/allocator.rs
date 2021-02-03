@@ -11,11 +11,6 @@ use core::{
 pub struct GcAllocator;
 
 use crate::boehm;
-#[cfg(feature = "rustgc")]
-use crate::specializer;
-
-#[cfg(feature = "rustgc")]
-pub(crate) static ALLOCATOR: GcAllocator = GcAllocator;
 
 unsafe impl GlobalAlloc for GcAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -33,39 +28,89 @@ unsafe impl GlobalAlloc for GcAllocator {
         boehm::GC_realloc(ptr, new_size) as *mut u8
     }
 
-    #[cfg(feature = "rustgc_internal")]
+    #[cfg(feature = "rustgc")]
     unsafe fn alloc_precise(&self, layout: Layout, bitmap: usize, bitmap_size: usize) -> *mut u8 {
         let gc_descr = boehm::GC_make_descriptor(&bitmap, bitmap_size);
         boehm::GC_malloc_explicitly_typed(layout.size(), gc_descr) as *mut u8
     }
 
-    #[cfg(feature = "rustgc_internal")]
+    #[cfg(feature = "rustgc")]
     fn alloc_conservative(&self, layout: Layout) -> *mut u8 {
         unsafe { boehm::GC_malloc(layout.size()) as *mut u8 }
     }
 
-    #[cfg(feature = "rustgc_internal")]
-    unsafe fn alloc_atomic(&self, layout: Layout) -> *mut u8 {
+    #[cfg(feature = "rustgc")]
+    unsafe fn alloc_untraceable(&self, layout: Layout) -> *mut u8 {
         boehm::GC_malloc_atomic(layout.size()) as *mut u8
     }
 }
 
 unsafe impl Allocator for GcAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        let ptr = unsafe { boehm::GC_malloc(layout.size()) } as *mut u8;
-        assert!(!ptr.is_null());
-        let ptr = unsafe { NonNull::new_unchecked(ptr) };
-        Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
+        unsafe {
+            let ptr = boehm::GC_malloc(layout.size()) as *mut u8;
+            let ptr = NonNull::new_unchecked(ptr);
+            Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
+        }
     }
 
     unsafe fn deallocate(&self, _: NonNull<u8>, _: Layout) {}
+
+    #[cfg(feature = "rustgc")]
+    fn alloc_untraceable(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        unsafe {
+            let ptr = boehm::GC_malloc_atomic(layout.size()) as *mut u8;
+            let ptr = NonNull::new_unchecked(ptr);
+            Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
+        }
+    }
+
+    #[cfg(feature = "rustgc")]
+    fn alloc_conservative(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        unsafe {
+            let ptr = boehm::GC_malloc(layout.size()) as *mut u8;
+            let ptr = NonNull::new_unchecked(ptr);
+            Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
+        }
+    }
+
+    #[cfg(feature = "rustgc")]
+    fn alloc_precise(
+        &self,
+        layout: Layout,
+        bitmap: usize,
+        bitmap_size: usize,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        unsafe {
+            let gc_descr = boehm::GC_make_descriptor(&bitmap as *const usize, bitmap_size);
+            let ptr = boehm::GC_malloc_explicitly_typed(layout.size(), gc_descr);
+            let ptr = NonNull::new_unchecked(ptr);
+            Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
+        }
+    }
 }
 
 impl GcAllocator {
-    #[cfg(feature = "rustgc_internal")]
+    /// Allocate `T` such that it is optimized for marking.
+    #[cfg(feature = "rustgc")]
     pub fn maybe_optimised_alloc<T>(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        let sp = specializer::AllocationSpecializer::new();
-        sp.maybe_optimised_alloc::<T>(layout)
+        assert_eq!(Layout::new::<T>(), layout);
+
+        if !::std::gc::needs_tracing::<T>() {
+            return Allocator::alloc_untraceable(self, layout);
+        }
+
+        if ::std::gc::can_trace_precisely::<T>() {
+            let trace = unsafe { ::std::gc::gc_layout::<T>() };
+            return Allocator::alloc_precise(
+                self,
+                layout,
+                trace.bitmap as usize,
+                trace.size as usize,
+            );
+        }
+
+        Allocator::alloc_conservative(self, layout)
     }
 
     pub fn force_gc() {

@@ -4,7 +4,6 @@
 #![feature(alloc_layout_extra)]
 #![feature(arbitrary_self_types)]
 #![feature(dispatch_from_dyn)]
-#![feature(specialization)]
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(raw_vec_internals)]
 #![feature(const_fn)]
@@ -22,8 +21,6 @@ pub mod stats;
 
 mod allocator;
 mod boehm;
-#[cfg(feature = "rustgc")]
-mod specializer;
 
 pub use allocator::GcAllocator;
 pub use gc::Gc;
