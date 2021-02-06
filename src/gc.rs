@@ -5,7 +5,7 @@ use std::{
     hash::{Hash, Hasher},
     marker::{PhantomData, Unsize},
     mem::{forget, ManuallyDrop, MaybeUninit},
-    ops::{CoerceUnsized, Deref, DerefMut, DispatchFromDyn},
+    ops::{CoerceUnsized, Deref, DispatchFromDyn},
     ptr::NonNull,
 };
 
@@ -244,12 +244,6 @@ impl<T: ?Sized> Deref for Gc<T> {
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*(self.ptr.as_ptr() as *const T) }
-    }
-}
-
-impl<T: ?Sized> DerefMut for Gc<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *(self.ptr.as_ptr() as *mut T) }
     }
 }
 
