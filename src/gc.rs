@@ -39,15 +39,18 @@ pub fn gc_init() {
 /// `Gc<T>` automatically dereferences to `T` (via the `Deref` trait), so
 /// you can call `T`'s methods on a value of type `Gc<T>`.
 #[derive(PartialEq, Eq, Debug)]
-pub struct Gc<T: ?Sized> {
+pub struct Gc<T: ?Sized + Send + Sync> {
     ptr: NonNull<GcBox<T>>,
     _phantom: PhantomData<T>,
 }
 
-impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<Gc<U>> for Gc<T> {}
-impl<T: ?Sized + Unsize<U>, U: ?Sized> DispatchFromDyn<Gc<U>> for Gc<T> {}
+impl<T: ?Sized + Unsize<U> + Send + Sync, U: ?Sized + Send + Sync> CoerceUnsized<Gc<U>> for Gc<T> {}
+impl<T: ?Sized + Unsize<U> + Send + Sync, U: ?Sized + Send + Sync> DispatchFromDyn<Gc<U>>
+    for Gc<T>
+{
+}
 
-impl<T> Gc<T> {
+impl<T: Send + Sync> Gc<T> {
     /// Constructs a new `Gc<T>`.
     pub fn new(v: T) -> Self {
         Gc {
@@ -101,8 +104,8 @@ impl<T> Gc<T> {
     }
 }
 
-impl Gc<dyn Any> {
-    pub fn downcast<T: Any>(&self) -> Result<Gc<T>, Gc<dyn Any>> {
+impl Gc<dyn Any + Send + Sync> {
+    pub fn downcast<T: Any + Send + Sync>(&self) -> Result<Gc<T>, Gc<dyn Any + Send + Sync>> {
         if (*self).is::<T>() {
             let ptr = self.ptr.cast::<GcBox<T>>();
             Ok(Gc::from_inner(ptr))
@@ -122,7 +125,7 @@ pub fn needs_finalizer<T>() -> bool {
     std::mem::needs_finalizer::<T>()
 }
 
-impl<T: ?Sized> Gc<T> {
+impl<T: ?Sized + Send + Sync> Gc<T> {
     /// Get a raw pointer to the underlying value `T`.
     pub fn into_raw(this: Self) -> *const T {
         this.ptr.as_ptr() as *const T
@@ -156,7 +159,7 @@ impl<T: ?Sized> Gc<T> {
     }
 }
 
-impl<T> Gc<MaybeUninit<T>> {
+impl<T: Send + Sync> Gc<MaybeUninit<T>> {
     /// As with `MaybeUninit::assume_init`, it is up to the caller to guarantee
     /// that the inner value really is in an initialized state. Calling this
     /// when the content is not yet fully initialized causes immediate undefined
@@ -167,7 +170,7 @@ impl<T> Gc<MaybeUninit<T>> {
     }
 }
 
-impl<T: ?Sized + fmt::Display> fmt::Display for Gc<T> {
+impl<T: ?Sized + fmt::Display + Send + Sync> fmt::Display for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
@@ -239,7 +242,7 @@ impl<T> GcBox<MaybeUninit<T>> {
     }
 }
 
-impl<T: ?Sized> Deref for Gc<T> {
+impl<T: ?Sized + Send + Sync> Deref for Gc<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -250,15 +253,15 @@ impl<T: ?Sized> Deref for Gc<T> {
 /// `Copy` and `Clone` are implemented manually because a reference to `Gc<T>`
 /// should be copyable regardless of `T`. It differs subtly from `#[derive(Copy,
 /// Clone)]` in that the latter only makes `Gc<T>` copyable if `T` is.
-impl<T: ?Sized> Copy for Gc<T> {}
+impl<T: ?Sized + Send + Sync> Copy for Gc<T> {}
 
-impl<T: ?Sized> Clone for Gc<T> {
+impl<T: ?Sized + Send + Sync> Clone for Gc<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: ?Sized + Hash> Hash for Gc<T> {
+impl<T: ?Sized + Hash + Send + Sync> Hash for Gc<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (**self).hash(state);
     }
@@ -293,16 +296,24 @@ mod test {
         struct S2 {
             y: u64,
         }
-        trait T {
-            fn f(self: Gc<Self>) -> u64;
+        trait T: Send + Sync {
+            fn f(self: Gc<Self>) -> u64
+            where
+                Self: Send + Sync;
         }
         impl T for S1 {
-            fn f(self: Gc<Self>) -> u64 {
+            fn f(self: Gc<Self>) -> u64
+            where
+                Self: Send + Sync,
+            {
                 self.x
             }
         }
         impl T for S2 {
-            fn f(self: Gc<Self>) -> u64 {
+            fn f(self: Gc<Self>) -> u64
+            where
+                Self: Send + Sync,
+            {
                 self.y
             }
         }
@@ -314,8 +325,8 @@ mod test {
         assert_eq!(s1gc.f(), 1);
         assert_eq!(s2gc.f(), 2);
 
-        let s1gcd: Gc<T> = s1gc;
-        let s2gcd: Gc<T> = s2gc;
+        let s1gcd: Gc<dyn T> = s1gc;
+        let s2gcd: Gc<dyn T> = s2gc;
         assert_eq!(s1gcd.f(), 1);
         assert_eq!(s2gcd.f(), 2);
     }
