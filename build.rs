@@ -25,12 +25,6 @@ where
 }
 
 fn main() {
-    if env::var_os("CARGO_FEATURE_USE_BOEHM").is_none() {
-        // The Boehm GC should only be built and linked if compiled with that
-        // feature flag.
-        return;
-    }
-
     let out_dir = env::var("OUT_DIR").unwrap();
     let mut boehm_src = PathBuf::from(out_dir);
     boehm_src.push(BOEHM_DIR);
