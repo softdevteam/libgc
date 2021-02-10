@@ -29,17 +29,20 @@ unsafe impl GlobalAlloc for GcAllocator {
     }
 
     #[cfg(feature = "rustgc")]
+    #[inline]
     unsafe fn alloc_precise(&self, layout: Layout, bitmap: usize, bitmap_size: usize) -> *mut u8 {
         let gc_descr = boehm::GC_make_descriptor(&bitmap, bitmap_size);
         boehm::GC_malloc_explicitly_typed(layout.size(), gc_descr) as *mut u8
     }
 
     #[cfg(feature = "rustgc")]
+    #[inline]
     fn alloc_conservative(&self, layout: Layout) -> *mut u8 {
         unsafe { boehm::GC_malloc(layout.size()) as *mut u8 }
     }
 
     #[cfg(feature = "rustgc")]
+    #[inline]
     unsafe fn alloc_untraceable(&self, layout: Layout) -> *mut u8 {
         boehm::GC_malloc_atomic(layout.size()) as *mut u8
     }
@@ -57,6 +60,7 @@ unsafe impl Allocator for GcAllocator {
     unsafe fn deallocate(&self, _: NonNull<u8>, _: Layout) {}
 
     #[cfg(feature = "rustgc")]
+    #[inline]
     fn alloc_untraceable(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         unsafe {
             let ptr = boehm::GC_malloc_atomic(layout.size()) as *mut u8;
@@ -66,6 +70,7 @@ unsafe impl Allocator for GcAllocator {
     }
 
     #[cfg(feature = "rustgc")]
+    #[inline]
     fn alloc_conservative(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         unsafe {
             let ptr = boehm::GC_malloc(layout.size()) as *mut u8;
@@ -75,6 +80,7 @@ unsafe impl Allocator for GcAllocator {
     }
 
     #[cfg(feature = "rustgc")]
+    #[inline]
     fn alloc_precise(
         &self,
         layout: Layout,
