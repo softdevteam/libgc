@@ -38,7 +38,7 @@ pub fn gc_init() {
 ///
 /// `Gc<T>` automatically dereferences to `T` (via the `Deref` trait), so
 /// you can call `T`'s methods on a value of type `Gc<T>`.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 pub struct Gc<T: ?Sized + Send + Sync> {
     ptr: NonNull<GcBox<T>>,
     _phantom: PhantomData<T>,
@@ -173,6 +173,18 @@ impl<T: Send + Sync> Gc<MaybeUninit<T>> {
 impl<T: ?Sized + fmt::Display + Send + Sync> fmt::Display for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
+    }
+}
+
+impl<T: ?Sized + fmt::Debug + Send + Sync> fmt::Debug for Gc<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<T: ?Sized + Send + Sync> fmt::Pointer for Gc<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Pointer::fmt(&(&**self as *const T), f)
     }
 }
 
