@@ -20,10 +20,10 @@ pub mod gc;
 #[cfg(feature = "gc_stats")]
 pub mod stats;
 
-mod allocator;
-mod boehm;
-
+#[cfg(feature = "standalone")]
 pub use allocator::GcAllocator;
+
 pub use gc::Gc;
 
+#[cfg(feature = "standalone")]
 pub static ALLOCATOR: GcAllocator = GcAllocator;

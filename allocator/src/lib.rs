@@ -1,16 +1,15 @@
-//! This library acts as a shim to prevent static linking the Boehm GC directly
-//! inside library/alloc which causes surprising and hard to debug errors.
-
-#![allow(dead_code)]
+#![no_std]
+#![feature(allocator_api)]
+#![feature(nonnull_slice_from_raw_parts)]
 
 use core::{
     alloc::{AllocError, Allocator, GlobalAlloc, Layout},
     ptr::NonNull,
 };
 
-pub struct GcAllocator;
+mod boehm;
 
-use crate::boehm;
+pub struct GcAllocator;
 
 unsafe impl GlobalAlloc for GcAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -97,28 +96,6 @@ unsafe impl Allocator for GcAllocator {
 }
 
 impl GcAllocator {
-    /// Allocate `T` such that it is optimized for marking.
-    #[cfg(feature = "rustgc")]
-    pub fn maybe_optimised_alloc<T>(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        assert_eq!(Layout::new::<T>(), layout);
-
-        if !::std::gc::needs_tracing::<T>() {
-            return Allocator::alloc_untraceable(self, layout);
-        }
-
-        if ::std::gc::can_trace_precisely::<T>() {
-            let trace = unsafe { ::std::gc::gc_layout::<T>() };
-            return Allocator::alloc_precise(
-                self,
-                layout,
-                trace.bitmap as usize,
-                trace.size as usize,
-            );
-        }
-
-        Allocator::alloc_conservative(self, layout)
-    }
-
     pub fn force_gc() {
         unsafe { boehm::GC_gcollect() }
     }
