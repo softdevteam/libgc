@@ -10,6 +10,8 @@ const BUILD_DIR: &str = ".libs";
 #[cfg(not(all(target_pointer_width = "64", target_arch = "x86_64")))]
 compile_error!("Requires x86_64 with 64 bit pointer width.");
 static POINTER_MASK: &str = "-DPOINTER_MASK=0xFFFFFFFFFFFFFFF8";
+static FPIC: &str = "-fPIC";
+static MULTITHREADED: &str = "-DGC_THREADS";
 
 fn run<F>(name: &str, mut configure: F)
 where
@@ -42,9 +44,10 @@ fn main() {
 
         run("./autogen.sh", |cmd| cmd);
         run("./configure", |cmd| {
-            cmd.arg("--enable-static")
-                .arg("--disable-shared")
-                .env("CFLAGS", POINTER_MASK)
+            cmd.arg("--enable-static").arg("--disable-shared").env(
+                "CFLAGS",
+                format!("{} {} {}", POINTER_MASK, FPIC, MULTITHREADED),
+            )
         });
 
         run("make", |cmd| cmd.arg("-j"));
