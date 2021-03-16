@@ -11,7 +11,7 @@ const BUILD_DIR: &str = ".libs";
 compile_error!("Requires x86_64 with 64 bit pointer width.");
 static POINTER_MASK: &str = "-DPOINTER_MASK=0xFFFFFFFFFFFFFFF8";
 static FPIC: &str = "-fPIC";
-static MULTITHREADED: &str = "-DGC_THREADS";
+static MULTITHREADED: &str = "-DGC_ALWAYS_MULTITHREADED";
 
 fn run<F>(name: &str, mut configure: F)
 where
