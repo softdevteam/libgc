@@ -115,12 +115,12 @@ impl Gc<dyn Any + Send + Sync> {
     }
 }
 
-#[cfg(not(feature = "rustgc"))]
+#[cfg(feature = "standalone")]
 pub fn needs_finalizer<T>() -> bool {
     std::mem::needs_drop::<T>()
 }
 
-#[cfg(feature = "rustgc")]
+#[cfg(not(feature = "standalone"))]
 pub fn needs_finalizer<T>() -> bool {
     std::mem::needs_finalizer::<T>()
 }

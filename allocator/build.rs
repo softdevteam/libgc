@@ -2,8 +2,6 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-use which::which;
-
 const BOEHM_REPO: &str = "https://github.com/ivmai/bdwgc.git";
 const BOEHM_ATOMICS_REPO: &str = "https://github.com/ivmai/libatomic_ops.git";
 const BOEHM_DIR: &str = "bdwgc";
@@ -49,12 +47,7 @@ fn main() {
                 .env("CFLAGS", POINTER_MASK)
         });
 
-        let cpus = num_cpus::get();
-        let make_bin = match which("gmake") {
-            Ok(_) => "gmake",
-            Err(_) => "make",
-        };
-        run(make_bin, |cmd| cmd.arg("-j").arg(format!("{}", cpus)));
+        run("make", |cmd| cmd.arg("-j"));
     }
 
     let mut libpath = PathBuf::from(&boehm_src);
