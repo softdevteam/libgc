@@ -57,8 +57,6 @@ extern "C" {
 
     pub(crate) fn GC_gcollect();
 
-    pub(crate) fn GC_start_performance_measurement();
-
     pub(crate) fn GC_get_full_gc_total_time() -> usize;
 
     pub(crate) fn GC_get_prof_stats(prof_stats: *mut ProfileStats, stats_size: usize) -> usize;
@@ -77,4 +75,8 @@ extern "C" {
     pub(crate) fn GC_register_my_thread(stack_base: *mut u8) -> i32;
 
     pub(crate) fn GC_unregister_my_thread() -> i32;
+
+    pub(crate) fn GC_allow_register_threads();
+
+    pub(crate) fn GC_init();
 }

@@ -148,21 +148,25 @@ impl GcAllocator {
     }
 
     pub fn init() {
-        unsafe { boehm::GC_start_performance_measurement() };
+        unsafe { boehm::GC_init() }
     }
 
     /// Returns true if thread was successfully registered.
     pub unsafe fn register_thread(stack_base: *mut u8) -> bool {
-        boehm::GC_register_my_thread(stack_base) != 0
+        boehm::GC_register_my_thread(stack_base) == 0
     }
 
     /// Returns true if thread was successfully unregistered.
     pub unsafe fn unregister_thread() -> bool {
-        boehm::GC_unregister_my_thread() != 0
+        boehm::GC_unregister_my_thread() == 0
     }
 
     pub fn thread_registered() -> bool {
-        unsafe { boehm::GC_thread_is_registered() != 0 }
+        unsafe { boehm::GC_thread_is_registered() == 0 }
+    }
+
+    pub fn allow_register_threads() {
+        unsafe { boehm::GC_allow_register_threads() }
     }
 }
 
