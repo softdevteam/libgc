@@ -39,18 +39,15 @@ pub fn gc_init() {
 /// `Gc<T>` automatically dereferences to `T` (via the `Deref` trait), so
 /// you can call `T`'s methods on a value of type `Gc<T>`.
 #[derive(PartialEq, Eq)]
-pub struct Gc<T: ?Sized + Send + Sync> {
+pub struct Gc<T: ?Sized + Send> {
     ptr: NonNull<GcBox<T>>,
     _phantom: PhantomData<T>,
 }
 
-impl<T: ?Sized + Unsize<U> + Send + Sync, U: ?Sized + Send + Sync> CoerceUnsized<Gc<U>> for Gc<T> {}
-impl<T: ?Sized + Unsize<U> + Send + Sync, U: ?Sized + Send + Sync> DispatchFromDyn<Gc<U>>
-    for Gc<T>
-{
-}
+impl<T: ?Sized + Unsize<U> + Send, U: ?Sized + Send> CoerceUnsized<Gc<U>> for Gc<T> {}
+impl<T: ?Sized + Unsize<U> + Send, U: ?Sized + Send> DispatchFromDyn<Gc<U>> for Gc<T> {}
 
-impl<T: Send + Sync> Gc<T> {
+impl<T: Send> Gc<T> {
     /// Constructs a new `Gc<T>`.
     pub fn new(v: T) -> Self {
         Gc {
@@ -104,8 +101,8 @@ impl<T: Send + Sync> Gc<T> {
     }
 }
 
-impl Gc<dyn Any + Send + Sync> {
-    pub fn downcast<T: Any + Send + Sync>(&self) -> Result<Gc<T>, Gc<dyn Any + Send + Sync>> {
+impl Gc<dyn Any + Send> {
+    pub fn downcast<T: Any + Send>(&self) -> Result<Gc<T>, Gc<dyn Any + Send>> {
         if (*self).is::<T>() {
             let ptr = self.ptr.cast::<GcBox<T>>();
             Ok(Gc::from_inner(ptr))
@@ -125,7 +122,7 @@ pub fn needs_finalizer<T>() -> bool {
     std::mem::needs_finalizer::<T>()
 }
 
-impl<T: ?Sized + Send + Sync> Gc<T> {
+impl<T: ?Sized + Send> Gc<T> {
     /// Get a raw pointer to the underlying value `T`.
     pub fn into_raw(this: Self) -> *const T {
         this.ptr.as_ptr() as *const T
@@ -159,7 +156,7 @@ impl<T: ?Sized + Send + Sync> Gc<T> {
     }
 }
 
-impl<T: Send + Sync> Gc<MaybeUninit<T>> {
+impl<T: Send> Gc<MaybeUninit<T>> {
     /// As with `MaybeUninit::assume_init`, it is up to the caller to guarantee
     /// that the inner value really is in an initialized state. Calling this
     /// when the content is not yet fully initialized causes immediate undefined
@@ -170,19 +167,19 @@ impl<T: Send + Sync> Gc<MaybeUninit<T>> {
     }
 }
 
-impl<T: ?Sized + fmt::Display + Send + Sync> fmt::Display for Gc<T> {
+impl<T: ?Sized + fmt::Display + Send> fmt::Display for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized + fmt::Debug + Send + Sync> fmt::Debug for Gc<T> {
+impl<T: ?Sized + fmt::Debug + Send> fmt::Debug for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized + Send + Sync> fmt::Pointer for Gc<T> {
+impl<T: ?Sized + Send> fmt::Pointer for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Pointer::fmt(&(&**self as *const T), f)
     }
@@ -254,7 +251,7 @@ impl<T> GcBox<MaybeUninit<T>> {
     }
 }
 
-impl<T: ?Sized + Send + Sync> Deref for Gc<T> {
+impl<T: ?Sized + Send> Deref for Gc<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -265,15 +262,15 @@ impl<T: ?Sized + Send + Sync> Deref for Gc<T> {
 /// `Copy` and `Clone` are implemented manually because a reference to `Gc<T>`
 /// should be copyable regardless of `T`. It differs subtly from `#[derive(Copy,
 /// Clone)]` in that the latter only makes `Gc<T>` copyable if `T` is.
-impl<T: ?Sized + Send + Sync> Copy for Gc<T> {}
+impl<T: ?Sized + Send> Copy for Gc<T> {}
 
-impl<T: ?Sized + Send + Sync> Clone for Gc<T> {
+impl<T: ?Sized + Send> Clone for Gc<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: ?Sized + Hash + Send + Sync> Hash for Gc<T> {
+impl<T: ?Sized + Hash + Send> Hash for Gc<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (**self).hash(state);
     }
@@ -308,15 +305,15 @@ mod test {
         struct S2 {
             y: u64,
         }
-        trait T: Send + Sync {
+        trait T: Send {
             fn f(self: Gc<Self>) -> u64
             where
-                Self: Send + Sync;
+                Self: Send;
         }
         impl T for S1 {
             fn f(self: Gc<Self>) -> u64
             where
-                Self: Send + Sync,
+                Self: Send,
             {
                 self.x
             }
@@ -324,7 +321,7 @@ mod test {
         impl T for S2 {
             fn f(self: Gc<Self>) -> u64
             where
-                Self: Send + Sync,
+                Self: Send,
             {
                 self.y
             }
