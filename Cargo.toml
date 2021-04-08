@@ -17,6 +17,16 @@ gc_stats = []
 libc = "*"
 allocator = { path = "allocator", optional = true }
 
+[dev-dependencies]
+lang_tester = "0.3"
+tempfile = "3.2"
+
+
+[[test]]
+name = "gc_tests"
+path = "gc_tests/run_tests.rs"
+harness = false
+
 [build-dependencies]
 rerun_except = "0.1"
 num_cpus = "1.12"
