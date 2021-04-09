@@ -1,4 +1,5 @@
-#![cfg_attr(feature = "rustgc", feature(gc))]
+#![cfg_attr(not(feature = "standalone"), feature(gc))]
+#![cfg_attr(not(feature = "standalone"), feature(rustc_private))]
 #![feature(core_intrinsics)]
 #![feature(allocator_api)]
 #![feature(alloc_layout_extra)]
@@ -23,7 +24,9 @@ pub mod stats;
 #[cfg(feature = "standalone")]
 pub use allocator::GcAllocator;
 
+#[cfg(not(feature = "standalone"))]
+pub use std::alloc::GcAllocator;
+
 pub use gc::Gc;
 
-#[cfg(feature = "standalone")]
 pub static ALLOCATOR: GcAllocator = GcAllocator;

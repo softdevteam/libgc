@@ -38,23 +38,39 @@ pub fn gc_init() {
 ///
 /// `Gc<T>` automatically dereferences to `T` (via the `Deref` trait), so
 /// you can call `T`'s methods on a value of type `Gc<T>`.
+///
+/// `Gc<T>` will implement `Sync` as long as `T` implements `Sync`. `Gc<T>`
+/// will always implement `Send` because it requires `T` to implement `Send`.
+/// This is because if `T` has a finalizer, it will be run on a seperate thread.
 #[derive(PartialEq, Eq)]
-pub struct Gc<T: ?Sized + Send + Sync> {
-    ptr: NonNull<GcBox<T>>,
+pub struct Gc<T: ?Sized + Send> {
+    ptr: GcPointer<T>,
     _phantom: PhantomData<T>,
 }
 
-impl<T: ?Sized + Unsize<U> + Send + Sync, U: ?Sized + Send + Sync> CoerceUnsized<Gc<U>> for Gc<T> {}
-impl<T: ?Sized + Unsize<U> + Send + Sync, U: ?Sized + Send + Sync> DispatchFromDyn<Gc<U>>
-    for Gc<T>
+/// This zero-sized wrapper struct is needed to allow `Gc<T>` to have the same
+/// `Send` + `Sync` semantics as `T`. Without it, the inner `NonNull` type would
+/// mean that a `Gc` never implements `Send` or `Sync`.
+#[derive(PartialEq, Eq)]
+struct GcPointer<T: ?Sized>(NonNull<GcBox<T>>);
+
+unsafe impl<T> Send for GcPointer<T> {}
+unsafe impl<T> Sync for GcPointer<T> {}
+
+impl<T: ?Sized + Unsize<U> + Send, U: ?Sized + Send> CoerceUnsized<Gc<U>> for Gc<T> {}
+impl<T: ?Sized + Unsize<U> + Send, U: ?Sized + Send> DispatchFromDyn<Gc<U>> for Gc<T> {}
+
+impl<T: ?Sized + Unsize<U> + Send, U: ?Sized + Send> CoerceUnsized<GcPointer<U>> for GcPointer<T> {}
+impl<T: ?Sized + Unsize<U> + Send, U: ?Sized + Send> DispatchFromDyn<GcPointer<U>>
+    for GcPointer<T>
 {
 }
 
-impl<T: Send + Sync> Gc<T> {
+impl<T: Send> Gc<T> {
     /// Constructs a new `Gc<T>`.
     pub fn new(v: T) -> Self {
         Gc {
-            ptr: unsafe { NonNull::new_unchecked(GcBox::new(v)) },
+            ptr: unsafe { GcPointer(NonNull::new_unchecked(GcBox::new(v))) },
             _phantom: PhantomData,
         }
     }
@@ -97,20 +113,20 @@ impl<T: Send + Sync> Gc<T> {
     }
 
     pub fn unregister_finalizer(&mut self) {
-        let ptr = self.ptr.as_ptr() as *mut GcBox<T>;
+        let ptr = self.ptr.0.as_ptr() as *mut GcBox<T>;
         unsafe {
             GcBox::unregister_finalizer(&mut *ptr);
         }
     }
 }
 
-impl Gc<dyn Any + Send + Sync> {
-    pub fn downcast<T: Any + Send + Sync>(&self) -> Result<Gc<T>, Gc<dyn Any + Send + Sync>> {
+impl Gc<dyn Any + Send> {
+    pub fn downcast<T: Any + Send>(&self) -> Result<Gc<T>, Gc<dyn Any + Send>> {
         if (*self).is::<T>() {
-            let ptr = self.ptr.cast::<GcBox<T>>();
+            let ptr = self.ptr.0.cast::<GcBox<T>>();
             Ok(Gc::from_inner(ptr))
         } else {
-            Err(Gc::from_inner(self.ptr))
+            Err(Gc::from_inner(self.ptr.0))
         }
     }
 }
@@ -125,14 +141,14 @@ pub fn needs_finalizer<T>() -> bool {
     std::mem::needs_finalizer::<T>()
 }
 
-impl<T: ?Sized + Send + Sync> Gc<T> {
+impl<T: ?Sized + Send> Gc<T> {
     /// Get a raw pointer to the underlying value `T`.
     pub fn into_raw(this: Self) -> *const T {
-        this.ptr.as_ptr() as *const T
+        this.ptr.0.as_ptr() as *const T
     }
 
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
-        this.ptr.as_ptr() == other.ptr.as_ptr()
+        this.ptr.0.as_ptr() == other.ptr.0.as_ptr()
     }
 
     /// Get a `Gc<T>` from a raw pointer.
@@ -146,43 +162,43 @@ impl<T: ?Sized + Send + Sync> Gc<T> {
     /// size and alignment of the originally allocated block.
     pub fn from_raw(raw: *const T) -> Gc<T> {
         Gc {
-            ptr: unsafe { NonNull::new_unchecked(raw as *mut GcBox<T>) },
+            ptr: unsafe { GcPointer(NonNull::new_unchecked(raw as *mut GcBox<T>)) },
             _phantom: PhantomData,
         }
     }
 
     fn from_inner(ptr: NonNull<GcBox<T>>) -> Self {
         Self {
-            ptr,
+            ptr: GcPointer(ptr),
             _phantom: PhantomData,
         }
     }
 }
 
-impl<T: Send + Sync> Gc<MaybeUninit<T>> {
+impl<T: Send> Gc<MaybeUninit<T>> {
     /// As with `MaybeUninit::assume_init`, it is up to the caller to guarantee
     /// that the inner value really is in an initialized state. Calling this
     /// when the content is not yet fully initialized causes immediate undefined
     /// behaviour.
     pub unsafe fn assume_init(self) -> Gc<T> {
-        let ptr = self.ptr.as_ptr() as *mut GcBox<MaybeUninit<T>>;
+        let ptr = self.ptr.0.as_ptr() as *mut GcBox<MaybeUninit<T>>;
         Gc::from_inner((&mut *ptr).assume_init())
     }
 }
 
-impl<T: ?Sized + fmt::Display + Send + Sync> fmt::Display for Gc<T> {
+impl<T: ?Sized + fmt::Display + Send> fmt::Display for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized + fmt::Debug + Send + Sync> fmt::Debug for Gc<T> {
+impl<T: ?Sized + fmt::Debug + Send> fmt::Debug for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized + Send + Sync> fmt::Pointer for Gc<T> {
+impl<T: ?Sized + Send> fmt::Pointer for Gc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Pointer::fmt(&(&**self as *const T), f)
     }
@@ -254,26 +270,33 @@ impl<T> GcBox<MaybeUninit<T>> {
     }
 }
 
-impl<T: ?Sized + Send + Sync> Deref for Gc<T> {
+impl<T: ?Sized + Send> Deref for Gc<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*(self.ptr.as_ptr() as *const T) }
+        unsafe { &*(self.ptr.0.as_ptr() as *const T) }
     }
 }
 
 /// `Copy` and `Clone` are implemented manually because a reference to `Gc<T>`
 /// should be copyable regardless of `T`. It differs subtly from `#[derive(Copy,
 /// Clone)]` in that the latter only makes `Gc<T>` copyable if `T` is.
-impl<T: ?Sized + Send + Sync> Copy for Gc<T> {}
+impl<T: ?Sized + Send> Copy for Gc<T> {}
 
-impl<T: ?Sized + Send + Sync> Clone for Gc<T> {
+impl<T: ?Sized + Send> Clone for Gc<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: ?Sized + Hash + Send + Sync> Hash for Gc<T> {
+impl<T: ?Sized> Copy for GcPointer<T> {}
+
+impl<T: ?Sized> Clone for GcPointer<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<T: ?Sized + Hash + Send> Hash for Gc<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (**self).hash(state);
     }
@@ -308,15 +331,15 @@ mod test {
         struct S2 {
             y: u64,
         }
-        trait T: Send + Sync {
+        trait T: Send {
             fn f(self: Gc<Self>) -> u64
             where
-                Self: Send + Sync;
+                Self: Send;
         }
         impl T for S1 {
             fn f(self: Gc<Self>) -> u64
             where
-                Self: Send + Sync,
+                Self: Send,
             {
                 self.x
             }
@@ -324,7 +347,7 @@ mod test {
         impl T for S2 {
             fn f(self: Gc<Self>) -> u64
             where
-                Self: Send + Sync,
+                Self: Send,
             {
                 self.y
             }
