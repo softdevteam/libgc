@@ -162,7 +162,7 @@ impl GcAllocator {
     }
 
     pub fn thread_registered() -> bool {
-        unsafe { boehm::GC_thread_is_registered() == 0 }
+        unsafe { boehm::GC_thread_is_registered() != 0 }
     }
 
     pub fn allow_register_threads() {
