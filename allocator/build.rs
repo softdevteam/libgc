@@ -12,7 +12,6 @@ compile_error!("Requires x86_64 with 64 bit pointer width.");
 static POINTER_MASK: &str = "-DPOINTER_MASK=0xFFFFFFFFFFFFFFF8";
 static FPIC: &str = "-fPIC";
 static MULTITHREADED: &str = "-DGC_ALWAYS_MULTITHREADED";
-static NO_INCREMENTAL: &str = "-DGC_DISABLE_INCREMENTAL";
 
 fn run<F>(name: &str, mut configure: F)
 where
@@ -47,10 +46,7 @@ fn main() {
         run("./configure", |cmd| {
             cmd.arg("--enable-static").arg("--disable-shared").env(
                 "CFLAGS",
-                format!(
-                    "{} {} {} {}",
-                    POINTER_MASK, FPIC, MULTITHREADED, NO_INCREMENTAL
-                ),
+                format!("{} {} {}", POINTER_MASK, FPIC, MULTITHREADED),
             )
         });
 
