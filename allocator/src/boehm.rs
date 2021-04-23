@@ -70,6 +70,9 @@ extern "C" {
     #[cfg(feature = "rustgc")]
     pub(crate) fn GC_malloc_atomic(nbytes: usize) -> *mut u8;
 
+    #[cfg(feature = "rustgc")]
+    pub(crate) fn GC_malloc_atomic_uncollectable(nbytes: usize) -> *mut u8;
+
     pub(crate) fn GC_thread_is_registered() -> u32;
 
     pub(crate) fn GC_register_my_thread(stack_base: *mut u8) -> i32;

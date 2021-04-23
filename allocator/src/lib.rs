@@ -13,9 +13,6 @@ pub struct GcAllocator;
 
 unsafe impl GlobalAlloc for GcAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        #[cfg(feature = "rustgc")]
-        return boehm::GC_malloc(layout.size()) as *mut u8;
-        #[cfg(not(feature = "rustgc"))]
         return boehm::GC_malloc_uncollectable(layout.size()) as *mut u8;
     }
 
@@ -30,20 +27,19 @@ unsafe impl GlobalAlloc for GcAllocator {
     #[cfg(feature = "rustgc")]
     #[inline]
     unsafe fn alloc_precise(&self, layout: Layout, bitmap: usize, bitmap_size: usize) -> *mut u8 {
-        let gc_descr = boehm::GC_make_descriptor(&bitmap, bitmap_size);
-        boehm::GC_malloc_explicitly_typed(layout.size(), gc_descr) as *mut u8
+        unimplemented!("Boehm does not provide an uncollectable version of this call")
     }
 
     #[cfg(feature = "rustgc")]
     #[inline]
     fn alloc_conservative(&self, layout: Layout) -> *mut u8 {
-        unsafe { boehm::GC_malloc(layout.size()) as *mut u8 }
+        unsafe { boehm::GC_malloc_uncollectable(layout.size()) as *mut u8 }
     }
 
     #[cfg(feature = "rustgc")]
     #[inline]
     unsafe fn alloc_untraceable(&self, layout: Layout) -> *mut u8 {
-        boehm::GC_malloc_atomic(layout.size()) as *mut u8
+        boehm::GC_malloc_atomic_uncollectable(layout.size()) as *mut u8
     }
 }
 
